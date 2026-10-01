@@ -5,7 +5,8 @@ set -uo pipefail
 
 DATA_DIR="${DATA_DIR:-/data}"
 export STORE_DIR="$DATA_DIR/store"
-mkdir -p "$STORE_DIR" "$DATA_DIR/outbox"
+mkdir -p "$STORE_DIR" "$DATA_DIR/outbox" "$DATA_DIR/dispatch"
+export DISPATCH_STATE_DIR="$DATA_DIR/dispatch"
 chmod 700 "$STORE_DIR"
 
 export WHATSAPP_DB_PATH="$STORE_DIR/messages.db"
@@ -34,8 +35,12 @@ echo "[start] launching gateway on port ${PORT:-8088}"
 ( exec /app/venv/bin/python /app/gateway.py ) &
 GW_PID=$!
 
-trap 'kill $BRIDGE_PID $MCP_PID $GW_PID 2>/dev/null' TERM INT
+echo "[start] launching PPB dispatch sync loop"
+( cd /app/dispatch && exec node loop.mjs ) &
+DISPATCH_PID=$!
+
+trap 'kill $BRIDGE_PID $MCP_PID $GW_PID $DISPATCH_PID 2>/dev/null' TERM INT
 wait -n
 echo "[start] a process exited; stopping container so Railway restarts it"
-kill $BRIDGE_PID $MCP_PID $GW_PID 2>/dev/null
+kill $BRIDGE_PID $MCP_PID $GW_PID $DISPATCH_PID 2>/dev/null
 exit 1

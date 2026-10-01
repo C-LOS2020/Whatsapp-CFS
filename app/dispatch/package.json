@@ -1,0 +1,11 @@
+{
+  "name": "ppb-dispatch-sync-railway",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Real-time PPB WhatsApp -> Firestore dispatch sync, running inside the Railway WhatsApp service.",
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "*"
+  }
+}

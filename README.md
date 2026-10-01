@@ -10,6 +10,7 @@ One container runs three processes:
 | WhatsApp bridge (Go, whatsmeow) | 127.0.0.1:8080 (private) | Linked-device session; stores messages in SQLite |
 | WhatsApp MCP server (Python) | 127.0.0.1:8000 (private) | The tools Claude uses (list_chats, list_messages, send_message, …) |
 | Gateway | `$PORT` (public) | Secret-key front door + QR linking page |
+| PPB dispatch sync (Node) | — | Every minute: reads PPB DISPATCH SALES / PPB WEEKEND TEAM, extracts requests with Claude, writes them to the Dispatch App's Firestore, posts "✅ Logged as …" back |
 
 Based on [verygoodplugins/whatsapp-mcp](https://github.com/verygoodplugins/whatsapp-mcp) v0.7.0 (MIT),
 with one small patch so the pairing QR can be shown in a browser.
@@ -19,6 +20,15 @@ with one small patch so the pairing QR can be shown in a browser.
 - **Volume** mounted at `/data` (holds the WhatsApp session + message database; without it you'd re-link on every deploy)
 - **Variable** `ACCESS_KEY` = long random string (keep secret)
 - **Networking** → generate a public domain
+
+### Dispatch sync variables
+
+`DISPATCH_ENABLED=true`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`,
+`SYNC_BOT_EMAIL`, `SYNC_BOT_PASSWORD` (same values as the PC's `whatsapp-sync-skill/.env`).
+Optional: `CLAUDE_MODEL` (default `claude-opus-5-5`), `DISPATCH_INTERVAL_SECONDS` (60),
+`DISPATCH_SETTLE_SECONDS` (90), `DISPATCH_ALERT_WHATSAPP` (12424279333).
+State lives in `/data/dispatch/sync_state.json`. After 5 failed runs in a row it
+WhatsApps an alert (at most every 3 hours).
 
 ## URLs (replace KEY with ACCESS_KEY)
 

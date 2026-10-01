@@ -131,7 +131,7 @@ async function tick(){
         new QRCode(document.getElementById('qr'),{text:s.qr,width:256,height:256,correctLevel:QRCode.CorrectLevel.L});
         last=s.qr;
       }
-    } else { b.innerHTML='<p>Starting the WhatsApp bridge… this page updates on its own.</p>'; last=null; }
+    } else { b.innerHTML='<p>Preparing a fresh QR code… this usually takes under 30 seconds and the page updates on its own.</p>'; last=null; }
   }catch(e){}
 }
 tick(); setInterval(tick,3000);

@@ -3154,6 +3154,10 @@ func main() {
 
 	// Add connection retry logic
 	maxRetries := 3
+	if client.Store.ID == nil {
+		// [cloud] not linked yet: keep offering fresh QR codes until someone scans.
+		maxRetries = 100000
+	}
 	var connErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -3198,6 +3202,7 @@ func main() {
 				connected <- true
 			case pairingQRTimedOut:
 				logger.Warnf("QR code timed out")
+				cancel() // [cloud] request a new batch of codes right away
 			case pairingQRChannelClosed:
 			}
 

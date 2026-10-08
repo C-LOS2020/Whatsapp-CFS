@@ -34,6 +34,7 @@ WhatsApps an alert (at most every 3 hours).
 
 - Link WhatsApp: `https://<domain>/KEY/link/`
 - Claude connector: `https://<domain>/KEY/mcp`
+- Download a WhatsApp file: `GET https://<domain>/KEY/media?message_id=<id>&chat_jid=<jid>` (used by the CFS Dash Board to save attachments; only files inside the store are served)
 
 Anyone with the KEY can read and send messages on this WhatsApp account, so
 treat the connector URL like a password. To rotate it, change `ACCESS_KEY` in

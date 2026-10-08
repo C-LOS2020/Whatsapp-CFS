@@ -19,7 +19,7 @@ import uvicorn
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 ACCESS_KEY = os.environ.get("ACCESS_KEY", "").strip()
@@ -144,6 +144,33 @@ async def link_page(request: Request) -> Response:
     return HTMLResponse(LINK_PAGE, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
 
+async def media(request: Request) -> Response:
+    """GET /<KEY>/media?message_id=..&chat_jid=..  -> the WhatsApp file itself.
+
+    Asks the private bridge to download the media (it is stored under STORE), then
+    streams it back. Only files inside STORE are ever served."""
+    if not key_ok(request):
+        return not_found()
+    mid = request.query_params.get("message_id", "").strip()
+    jid = request.query_params.get("chat_jid", "").strip()
+    if not mid or not jid:
+        return JSONResponse({"error": "message_id and chat_jid are required"}, status_code=400)
+    try:
+        r = await client.post(f"{BRIDGE}/api/download", json={"message_id": mid, "chat_jid": jid},
+                              headers={"Authorization": f"Bearer {bridge_token()}"}, timeout=120)
+        data = r.json()
+    except Exception:
+        return JSONResponse({"error": "bridge unavailable"}, status_code=503)
+    if not data.get("success") or not data.get("path"):
+        return JSONResponse({"error": data.get("message", "download failed")}, status_code=404)
+    try:
+        path = Path(data["path"]).resolve(strict=True)
+        path.relative_to(STORE.resolve())
+    except (OSError, ValueError):
+        return not_found()
+    return FileResponse(path, filename=path.name, headers={"Cache-Control": "no-store"})
+
+
 METHODS = ["GET", "POST", "DELETE", "OPTIONS", "HEAD"]
 app = Starlette(routes=[
     Route("/health", health),
@@ -152,6 +179,7 @@ app = Starlette(routes=[
     Route("/{key}/link", lambda r: Response(status_code=307, headers={"Location": f"/{r.path_params['key']}/link/"}) if key_ok(r) else not_found()),
     Route("/{key}/link/", link_page),
     Route("/{key}/link/state", link_state),
+    Route("/{key}/media", media),
 ])
 
 if __name__ == "__main__":

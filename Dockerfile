@@ -26,4 +26,7 @@ COPY --from=dispatch /usr/local/bin/node /usr/local/bin/node
 COPY --from=dispatch /dispatch/node_modules /app/dispatch/node_modules
 COPY app/dispatch/*.mjs app/dispatch/package.json /app/dispatch/
 COPY app/gateway.py app/start.sh /app/
-CMD ["/app/start.sh"]
+# Uploads from Windows (railway up) can drop the executable bit and add CRLF
+# line endings, so fix both here and launch through bash.
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
+CMD ["bash", "/app/start.sh"]

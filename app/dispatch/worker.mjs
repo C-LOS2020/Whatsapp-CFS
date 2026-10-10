@@ -370,6 +370,8 @@ async function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main().catch((err) => {
     console.error('[dispatch] ' + (err.stack || String(err)))
+    // Last line is what the failure alert quotes, so make it the actual reason.
+    console.error(`[dispatch] error: ${err?.status ? `HTTP ${err.status} ` : ''}${err?.message || String(err)}`.slice(0, 400))
     process.exit(1)
   })
 }

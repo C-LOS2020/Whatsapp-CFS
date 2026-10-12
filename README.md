@@ -23,9 +23,12 @@ with one small patch so the pairing QR can be shown in a browser.
 
 ### Dispatch sync variables
 
-`DISPATCH_ENABLED=true`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`,
-`SYNC_BOT_EMAIL`, `SYNC_BOT_PASSWORD` (same values as the PC's `whatsapp-sync-skill/.env`).
-Optional: `CLAUDE_MODEL` (default `claude-opus-5-5`), `DISPATCH_INTERVAL_SECONDS` (60),
+`DISPATCH_ENABLED=true`, `ANTHROPIC_API_KEY`, and `FIREBASE_SERVICE_ACCOUNT`: the full
+service-account key JSON (Firebase console → Project settings → Service accounts →
+Generate new private key), pasted as-is or base64-encoded. The account needs the
+**Cloud Datastore User** role (the default Firebase Admin SDK account already has it).
+Writes go through IAM, not `firestore.rules`, so no sync-bot user is needed.
+Optional: `FIREBASE_PROJECT_ID` (defaults to the key's `project_id`), `CLAUDE_MODEL` (default `claude-opus-5-5`), `DISPATCH_INTERVAL_SECONDS` (60),
 `DISPATCH_SETTLE_SECONDS` (90), `DISPATCH_ALERT_WHATSAPP` (12424279333).
 State lives in `/data/dispatch/sync_state.json`. After 5 failed runs in a row it
 WhatsApps an alert (at most every 3 hours).

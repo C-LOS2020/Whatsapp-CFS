@@ -1,18 +1,20 @@
 // Pushes structured dispatch requests (already extracted from WhatsApp messages)
 // into the PropanePLUS Dispatch App's Firestore.
 //
-// No firebase-admin / service account needed: this signs in as a regular
-// company-domain account (the "sync-bot" user, same as any staff member) and
-// writes through the plain Firestore REST API, governed by the same
-// firebase/firestore.rules as the app itself.
+// Authenticates as a Google service account (no firebase-admin dependency): it
+// signs a short-lived JWT with node:crypto, swaps it for an OAuth access token,
+// and writes through the plain Firestore REST API. Service-account access is
+// governed by IAM (the account needs the "Cloud Datastore User" role), not by
+// firebase/firestore.rules.
 //
 // Usage:
 //   node sync-to-firestore.mjs <path-to-items.json>
 //   node sync-to-firestore.mjs --pending-app-confirmations
 //   node sync-to-firestore.mjs --mark-confirmed <docId> [docId...]
 // Credentials come from environment variables (Railway Variables) or, if
-// present, a .env file next to this script: FIREBASE_API_KEY,
-// FIREBASE_PROJECT_ID, SYNC_BOT_EMAIL, SYNC_BOT_PASSWORD.
+// present, a .env file next to this script:
+//   FIREBASE_SERVICE_ACCOUNT  the service-account key JSON, pasted as-is or base64-encoded
+//   FIREBASE_PROJECT_ID       optional; defaults to the key's project_id
 //
 // Input file: a JSON array of items shaped like:
 // {
@@ -35,6 +37,7 @@
 // }
 
 import { readFileSync, existsSync } from 'node:fs'
+import { createSign } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -52,16 +55,34 @@ function loadEnv() {
       env[trimmed.slice(0, eq)] = trimmed.slice(eq + 1)
     }
   }
-  for (const k of ['FIREBASE_API_KEY', 'FIREBASE_PROJECT_ID', 'SYNC_BOT_EMAIL', 'SYNC_BOT_PASSWORD']) {
+  for (const k of ['FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID']) {
     if (process.env[k]) env[k] = process.env[k].trim()
   }
   return env
 }
 
+// Accepts the key file's JSON as-is, or base64 of it (handy if a host mangles newlines).
+export function parseServiceAccount(raw) {
+  if (!raw) return null
+  let text = raw.trim()
+  if (!text.startsWith('{')) text = Buffer.from(text, 'base64').toString('utf8')
+  const sa = JSON.parse(text)
+  if (!sa.client_email || !sa.private_key) throw new Error('FIREBASE_SERVICE_ACCOUNT is missing client_email or private_key')
+  sa.private_key = sa.private_key.replace(/\\n/g, '\n')
+  return sa
+}
+
 const env = loadEnv()
-const { FIREBASE_API_KEY, FIREBASE_PROJECT_ID, SYNC_BOT_EMAIL, SYNC_BOT_PASSWORD } = env
-if (!FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !SYNC_BOT_EMAIL || !SYNC_BOT_PASSWORD) {
-  console.error('Missing one of FIREBASE_API_KEY, FIREBASE_PROJECT_ID, SYNC_BOT_EMAIL, SYNC_BOT_PASSWORD')
+let SERVICE_ACCOUNT
+try {
+  SERVICE_ACCOUNT = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT)
+} catch (err) {
+  console.error('FIREBASE_SERVICE_ACCOUNT is not valid service-account JSON:', err.message)
+  process.exit(1)
+}
+const FIREBASE_PROJECT_ID = env.FIREBASE_PROJECT_ID || SERVICE_ACCOUNT?.project_id
+if (!SERVICE_ACCOUNT || !FIREBASE_PROJECT_ID) {
+  console.error('Missing FIREBASE_SERVICE_ACCOUNT (and FIREBASE_PROJECT_ID could not be determined)')
   process.exit(1)
 }
 
@@ -119,18 +140,31 @@ function fromFirestoreFields(fields) {
   return obj
 }
 
+const b64url = (buf) => Buffer.from(buf).toString('base64url')
+
+// Exchanges a self-signed JWT for a one-hour OAuth access token scoped to Firestore.
 async function signIn() {
-  const resp = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: SYNC_BOT_EMAIL, password: SYNC_BOT_PASSWORD, returnSecureToken: true }),
-    },
-  )
-  if (!resp.ok) throw new Error(`Sign-in failed: ${resp.status} ${await resp.text()}`)
+  const now = Math.floor(Date.now() / 1000)
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: SERVICE_ACCOUNT.private_key_id }))
+  const claims = b64url(JSON.stringify({
+    iss: SERVICE_ACCOUNT.client_email,
+    scope: 'https://www.googleapis.com/auth/datastore',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  }))
+  const signer = createSign('RSA-SHA256')
+  signer.update(`${header}.${claims}`)
+  const assertion = `${header}.${claims}.${b64url(signer.sign(SERVICE_ACCOUNT.private_key))}`
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+  })
+  if (!resp.ok) throw new Error(`Service-account token request failed: ${resp.status} ${await resp.text()}`)
   const data = await resp.json()
-  return data.idToken
+  return data.access_token
 }
 
 async function docExists(idToken, docId) {

@@ -291,6 +291,17 @@ async function syncWhatsAppRequests(state, sendFailures) {
     state = { ...state, last_scan_iso: new Date(Date.now() - FIRST_RUN_LOOKBACK_MS).toISOString() }
     if (!LIST_ONLY && !DRY_RUN) writeState(state)
   }
+  // A batch Claude already extracted, whose Firestore write failed last time:
+  // retry just the write, so a Firestore outage can't re-bill Claude every minute.
+  if (state.pending_batch && !LIST_ONLY && !DRY_RUN) {
+    const { items, newest_iso, scanned } = state.pending_batch
+    const summary = items.length ? writeBatch(items) : { created: 0, skipped: 0, createdItems: [] }
+    const { pending_batch, ...rest } = state
+    writeState({ ...rest, last_scan_iso: newest_iso })
+    await sendConfirmations(summary, sendFailures)
+    return { scanned, created: summary.created, duplicates: summary.skipped, retriedPending: true }
+  }
+
   const since = new Date(state.last_scan_iso)
   const { fresh, context } = loadMessages(since)
 
@@ -308,26 +319,16 @@ async function syncWhatsAppRequests(state, sendFailures) {
     return null
   }
 
-  let summary = { created: 0, skipped: 0, createdItems: [] }
-  if (items.length) {
-    writeFileSync(join(STATE_DIR, '.tmp-sync-batch.json'), JSON.stringify(items, null, 2))
-    summary = runSyncScript(join(STATE_DIR, '.tmp-sync-batch.json'))
-  }
+  const newest = fresh.reduce((a, m) => (m.timestamp > a ? m.timestamp : a), since)
+  // Save the extraction before writing, so a failed write is retried from here.
+  writeState({ ...state, pending_batch: { items, newest_iso: newest.toISOString(), scanned: fresh.length } })
+
+  const summary = items.length ? writeBatch(items) : { created: 0, skipped: 0, createdItems: [] }
 
   // Firestore write succeeded: advance state now, so a failed confirmation
   // below can't cause the same messages to be re-extracted.
-  const newest = fresh.reduce((a, m) => (m.timestamp > a ? m.timestamp : a), since)
   writeState({ ...state, last_scan_iso: newest.toISOString() })
-
-  const jidByChat = Object.fromEntries(Object.entries(CHATS).map(([jid, name]) => [name, jid]))
-  for (const created of summary.createdItems) {
-    try {
-      await sendWhatsApp(jidByChat[created.chat], confirmationText(created))
-    } catch (err) {
-      sendFailures.push(`${created.refNumber}: ${err.message}`)
-    }
-  }
-
+  await sendConfirmations(summary, sendFailures)
   return {
     scanned: fresh.length,
     created: summary.created,
@@ -335,6 +336,22 @@ async function syncWhatsAppRequests(state, sendFailures) {
     withAttachments: items.filter((i) => i.sourceMessage.hasAttachment).length,
     fraudSkipped: result.fraudMessageIds,
     notes: result.notes,
+  }
+}
+
+function writeBatch(items) {
+  writeFileSync(join(STATE_DIR, '.tmp-sync-batch.json'), JSON.stringify(items, null, 2))
+  return runSyncScript(join(STATE_DIR, '.tmp-sync-batch.json'))
+}
+
+async function sendConfirmations(summary, sendFailures) {
+  const jidByChat = Object.fromEntries(Object.entries(CHATS).map(([jid, name]) => [name, jid]))
+  for (const created of summary.createdItems) {
+    try {
+      await sendWhatsApp(jidByChat[created.chat], confirmationText(created))
+    } catch (err) {
+      sendFailures.push(`${created.refNumber}: ${err.message}`)
+    }
   }
 }
 

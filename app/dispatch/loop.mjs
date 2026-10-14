@@ -10,6 +10,10 @@ const INTERVAL_MS = Number(process.env.DISPATCH_INTERVAL_SECONDS || 60) * 1000
 const ALERT_AFTER_FAILURES = 5
 const ALERT_EVERY_MS = 3 * 3600 * 1000
 const ALERT_TO = (process.env.DISPATCH_ALERT_WHATSAPP || '12424279333').trim()
+const MAX_BACKOFF_MS = 30 * 60 * 1000
+// Errors that retrying every minute can't fix (billing, bad keys, missing
+// database): wait the maximum between attempts.
+const PERSISTENT_ERROR = /credit balance|invalid x-api-key|authentication_error|permission_error|PERMISSION_DENIED|does not exist|NOT_FOUND|invalid_grant/i
 const REQUIRED = ['FIREBASE_SERVICE_ACCOUNT', 'ANTHROPIC_API_KEY']
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -47,6 +51,7 @@ async function main() {
   // Give the bridge time to connect after a container start.
   await sleep(30000)
   for (;;) {
+    let nextDelay = INTERVAL_MS
     const { enabled, missing } = config()
     const status = !enabled ? 'disabled (set DISPATCH_ENABLED=true to start)' : missing.length ? `waiting for variables: ${missing.join(', ')}` : 'running'
     if (status !== announced) {
@@ -60,13 +65,16 @@ async function main() {
         failures = 0
       } else {
         failures++
+        // Back off 1, 2, 4, 8... minutes (max 30) so a stuck sync doesn't hammer paid APIs.
+        nextDelay = PERSISTENT_ERROR.test(res.error) ? MAX_BACKOFF_MS : Math.min(INTERVAL_MS * 2 ** (failures - 1), MAX_BACKOFF_MS)
+        console.log(`[dispatch] failed ${failures}x in a row; next attempt in ${Math.round(nextDelay / 60000)} min`)
         if (failures >= ALERT_AFTER_FAILURES && Date.now() - lastAlert > ALERT_EVERY_MS) {
           lastAlert = Date.now()
           await alert(`⚠️ PPB dispatch sync (cloud) has failed ${failures} times in a row. Latest error: ${res.error.slice(0, 400)}\nCheck Railway → spectacular-contentment → Whatsapp-CFS → Deploy Logs.`)
         }
       }
     }
-    await sleep(INTERVAL_MS)
+    await sleep(nextDelay)
   }
 }
 

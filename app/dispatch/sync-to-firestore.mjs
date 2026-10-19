@@ -55,7 +55,7 @@ function loadEnv() {
       env[trimmed.slice(0, eq)] = trimmed.slice(eq + 1)
     }
   }
-  for (const k of ['FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID']) {
+  for (const k of ['FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID', 'FIREBASE_API_KEY', 'SYNC_BOT_EMAIL', 'SYNC_BOT_PASSWORD']) {
     if (process.env[k]) env[k] = process.env[k].trim()
   }
   return env
@@ -81,8 +81,11 @@ try {
   process.exit(1)
 }
 const FIREBASE_PROJECT_ID = env.FIREBASE_PROJECT_ID || SERVICE_ACCOUNT?.project_id
-if (!SERVICE_ACCOUNT || !FIREBASE_PROJECT_ID) {
-  console.error('Missing FIREBASE_SERVICE_ACCOUNT (and FIREBASE_PROJECT_ID could not be determined)')
+// Fallback when the org forbids service-account keys: sign in as the sync-bot
+// Firebase user (writes then go through firestore.rules like any staff member).
+const USE_BOT = !SERVICE_ACCOUNT && !!(env.FIREBASE_API_KEY && env.SYNC_BOT_EMAIL && env.SYNC_BOT_PASSWORD)
+if ((!SERVICE_ACCOUNT && !USE_BOT) || !FIREBASE_PROJECT_ID) {
+  console.error('Missing credentials: set FIREBASE_SERVICE_ACCOUNT, or FIREBASE_API_KEY + SYNC_BOT_EMAIL + SYNC_BOT_PASSWORD + FIREBASE_PROJECT_ID')
   process.exit(1)
 }
 
@@ -142,8 +145,25 @@ function fromFirestoreFields(fields) {
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url')
 
-// Exchanges a self-signed JWT for a one-hour OAuth access token scoped to Firestore.
 async function signIn() {
+  return USE_BOT ? signInAsBot() : signInAsServiceAccount()
+}
+
+async function signInAsBot() {
+  const resp = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${env.FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: env.SYNC_BOT_EMAIL, password: env.SYNC_BOT_PASSWORD, returnSecureToken: true }),
+    },
+  )
+  if (!resp.ok) throw new Error(`Sign-in failed: ${resp.status} ${await resp.text()}`)
+  return (await resp.json()).idToken
+}
+
+// Exchanges a self-signed JWT for a one-hour OAuth access token scoped to Firestore.
+async function signInAsServiceAccount() {
   const now = Math.floor(Date.now() / 1000)
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: SERVICE_ACCOUNT.private_key_id }))
   const claims = b64url(JSON.stringify({

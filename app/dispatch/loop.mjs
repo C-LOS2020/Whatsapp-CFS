@@ -14,13 +14,17 @@ const MAX_BACKOFF_MS = 30 * 60 * 1000
 // Errors that retrying every minute can't fix (billing, bad keys, missing
 // database): wait the maximum between attempts.
 const PERSISTENT_ERROR = /credit balance|invalid x-api-key|authentication_error|permission_error|PERMISSION_DENIED|does not exist|NOT_FOUND|invalid_grant/i
-const REQUIRED = ['FIREBASE_SERVICE_ACCOUNT', 'ANTHROPIC_API_KEY']
+const REQUIRED = ['ANTHROPIC_API_KEY']
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function config() {
   const enabled = String(process.env.DISPATCH_ENABLED || '').trim().toLowerCase() === 'true'
-  const missing = REQUIRED.filter((k) => !String(process.env[k] || '').trim())
+  const has = (k) => !!String(process.env[k] || '').trim()
+  const missing = REQUIRED.filter((k) => !has(k))
+  // Firebase: a service-account key, or the sync-bot login (all four values).
+  const BOT = ['FIREBASE_API_KEY', 'FIREBASE_PROJECT_ID', 'SYNC_BOT_EMAIL', 'SYNC_BOT_PASSWORD']
+  if (!has('FIREBASE_SERVICE_ACCOUNT') && !BOT.every(has)) missing.push(...BOT.filter((k) => !has(k)))
   return { enabled, missing }
 }
 

@@ -28,7 +28,7 @@ service-account key JSON (Firebase console → Project settings → Service acco
 Generate new private key), pasted as-is or base64-encoded. The account needs the
 **Cloud Datastore User** role (the default Firebase Admin SDK account already has it).
 Writes go through IAM, not `firestore.rules`, so no sync-bot user is needed.
-Optional: `FIREBASE_PROJECT_ID` (defaults to the key's `project_id`), `CLAUDE_MODEL` (default `claude-opus-5-5`), `DISPATCH_INTERVAL_SECONDS` (60),
+Optional: `FIREBASE_PROJECT_ID` (defaults to the key's `project_id`), `CLAUDE_MODEL` (default `claude-opus-5-5`), `DISPATCH_INTERVAL_SECONDS` (900 = every 15 min),
 `DISPATCH_SETTLE_SECONDS` (90), `DISPATCH_ALERT_WHATSAPP` (12424279333).
 State lives in `/data/dispatch/sync_state.json`. After 5 failed runs in a row it
 WhatsApps an alert (at most every 3 hours).

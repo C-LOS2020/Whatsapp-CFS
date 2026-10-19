@@ -1,4 +1,4 @@
-// Runs worker.mjs every minute inside the Railway container.
+// Runs worker.mjs every 15 minutes (DISPATCH_INTERVAL_SECONDS) inside the Railway container.
 // Stays idle (never exits) until DISPATCH_ENABLED=true and the credentials are
 // set, so the rest of the container keeps running either way.
 import { execFile } from 'node:child_process'
@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const DIR = dirname(fileURLToPath(import.meta.url))
-const INTERVAL_MS = Number(process.env.DISPATCH_INTERVAL_SECONDS || 60) * 1000
+const INTERVAL_MS = Number(process.env.DISPATCH_INTERVAL_SECONDS || 900) * 1000
 const ALERT_AFTER_FAILURES = 5
 const ALERT_EVERY_MS = 3 * 3600 * 1000
 const ALERT_TO = (process.env.DISPATCH_ALERT_WHATSAPP || '12424279333').trim()

@@ -266,11 +266,20 @@ function onDutyChat(createdAt) {
 }
 
 function runSyncScript(...args) {
-  const out = execFileSync(process.execPath, [join(DIR, 'sync-to-firestore.mjs'), ...args], {
-    cwd: STATE_DIR,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  })
+  let out
+  try {
+    out = execFileSync(process.execPath, [join(DIR, 'sync-to-firestore.mjs'), ...args], {
+      cwd: STATE_DIR,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  } catch (err) {
+    const stderr = String(err.stderr || '')
+    if (stderr) process.stderr.write(stderr)
+    // Surface the script's own one-line reason instead of "Command failed".
+    const reason = stderr.split('\n').reverse().find((l) => l.startsWith('[dispatch] reason: '))
+    throw new Error(reason ? 'Firestore sync: ' + reason.slice('[dispatch] reason: '.length) : err.message)
+  }
   return JSON.parse(out.trim().split('\n').pop())
 }
 

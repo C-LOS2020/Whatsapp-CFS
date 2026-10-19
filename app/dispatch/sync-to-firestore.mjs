@@ -350,5 +350,8 @@ async function run() {
 
 run().catch((err) => {
   console.error('Sync failed:', err)
+  // One readable line last, so the log filter "[dispatch]" and the WhatsApp alert show the cause.
+  const reason = String(err?.message || err).replace(/\s+/g, ' ').slice(0, 400)
+  console.error('[dispatch] reason: ' + reason)
   process.exit(1)
 })

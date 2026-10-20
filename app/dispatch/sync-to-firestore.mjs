@@ -58,6 +58,8 @@ function loadEnv() {
   for (const k of ['FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID', 'FIREBASE_API_KEY', 'SYNC_BOT_EMAIL', 'SYNC_BOT_PASSWORD']) {
     if (process.env[k]) env[k] = process.env[k].trim()
   }
+  // Tolerate values pasted with surrounding quotes, e.g. "sync-bot@example.com".
+  for (const k of Object.keys(env)) env[k] = env[k].trim().replace(/^(['"])(.*)\1$/s, '$2').trim()
   return env
 }
 

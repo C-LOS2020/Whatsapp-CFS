@@ -29,9 +29,11 @@ const DRY_RUN = process.argv.includes('--dry-run')
 
 const SALES_JID = '120363024590153005@g.us'
 const WEEKEND_JID = '120363424833919931@g.us'
+const LPG_TEAM_JID = '120363349369520731@g.us'
 const CHATS = {
   [SALES_JID]: 'PPB DISPATCH SALES',
   [WEEKEND_JID]: 'PPB WEEKEND TEAM',
+  [LPG_TEAM_JID]: 'PPB LPG TEAM',
 }
 // Messages younger than this are left for the next run, so a request typed as
 // several quick messages (name, then address, then phone) is read as a whole.

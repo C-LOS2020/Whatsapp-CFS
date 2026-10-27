@@ -385,8 +385,31 @@ async function confirmAppRequests(sendFailures) {
   return confirmed.length
 }
 
+// One-off backfills: hand-checked request batches (backfill-*.json next to this
+// file) written once, then recorded in state.backfills_done. Firestore dedupes
+// by message id, so a retry after a failed write can't create duplicates.
+const BACKFILLS = ['backfill-2026-10-27.json']
+
+async function runBackfills(sendFailures) {
+  const state = readState()
+  const done = state.backfills_done || []
+  for (const name of BACKFILLS.filter((n) => !done.includes(n))) {
+    const items = JSON.parse(readFileSync(join(DIR, name), 'utf8'))
+    if (LIST_ONLY || DRY_RUN) {
+      console.log(JSON.stringify({ backfill: name, items: items.length }, null, 2))
+      continue
+    }
+    const summary = writeBatch(items)
+    writeState({ ...readState(), backfills_done: [...done, name] })
+    done.push(name)
+    await sendConfirmations(summary, sendFailures)
+    console.log('[dispatch] ' + JSON.stringify({ backfill: name, created: summary.created, duplicates: summary.skipped }))
+  }
+}
+
 async function main() {
   const sendFailures = []
+  await runBackfills(sendFailures)
   const whatsapp = await syncWhatsAppRequests(readState(), sendFailures)
   const appConfirmed = await confirmAppRequests(sendFailures)
   if (LIST_ONLY || DRY_RUN) return

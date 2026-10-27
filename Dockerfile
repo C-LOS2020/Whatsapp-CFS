@@ -24,7 +24,7 @@ RUN python -m venv /app/venv && /app/venv/bin/pip install --no-cache-dir /app/wh
 COPY --from=bridge /out/whatsapp-bridge /app/whatsapp-bridge
 COPY --from=dispatch /usr/local/bin/node /usr/local/bin/node
 COPY --from=dispatch /dispatch/node_modules /app/dispatch/node_modules
-COPY app/dispatch/*.mjs app/dispatch/package.json /app/dispatch/
+COPY app/dispatch/*.mjs app/dispatch/*.json /app/dispatch/
 COPY app/gateway.py app/start.sh /app/
 # Uploads from Windows (railway up) can drop the executable bit and add CRLF
 # line endings, so fix both here and launch through bash.

@@ -1,0 +1,74 @@
+[
+  {
+    "customerName": "Ivanna Capron",
+    "customerContact": "457-1587",
+    "fuelType": "LPG",
+    "fuelQuantity": "50 gal refill",
+    "chargePayment": "Bank transfer",
+    "dateRequested": "2026-10-26 before 10 AM",
+    "deliveryLocation": "Not specified",
+    "directions": "Not specified",
+    "sourceMessage": {
+      "messageId": "ACC45FE28761DE6D26E66DD0BAC5483B",
+      "text": "50 gall refill before 10am\nIvanna Capron\n 457-1587\nPayment will be sent via transfer",
+      "sender": "Philip Corey Taylor",
+      "chat": "PPB LPG TEAM",
+      "timestamp": "2026-10-26T13:09:22.000Z",
+      "hasAttachment": false
+    }
+  },
+  {
+    "customerName": "Edwin Munnings",
+    "customerContact": "457-4807 (also posted: 242-395-5026)",
+    "fuelType": "LPG",
+    "fuelQuantity": "120 gal new tank with gas",
+    "chargePayment": "Not specified",
+    "dateRequested": "2026-10-26",
+    "deliveryLocation": "#24 Carmichael Rd area, white trim black",
+    "directions": "From Carmichael Rd turn through the corner by Checkers. Drive down to the T-junction, make a right. 4th house on the right, #24 white trim black.",
+    "sourceMessage": {
+      "messageId": "AC47ABD4EBC662D0AC0012C9F26D72B8",
+      "text": "*Edwin Munnings*\n242-395-5026\n\nFrom Carmichael Rd turn through the corner by Checkers. Drive down to the T-junction, make a right. 4th house on the right, #24 white trim black.\n\n120gallon new tank delivery  with gas\n\nCall 457-4807 for the Carmichael customer",
+      "sender": "Philip Corey Taylor",
+      "chat": "PPB LPG TEAM",
+      "timestamp": "2026-10-26T16:44:58.000Z",
+      "hasAttachment": false
+    }
+  },
+  {
+    "customerName": "Jennifer Smith",
+    "customerContact": "242-395-5026",
+    "fuelType": "LPG",
+    "fuelQuantity": "120 gal new tank with gas",
+    "chargePayment": "Not specified",
+    "dateRequested": "2026-10-26 (reposted 2026-10-27)",
+    "deliveryLocation": "Not specified",
+    "directions": "Not specified",
+    "sourceMessage": {
+      "messageId": "ACA5B5C235AA6ABE39A76D7952707FD4",
+      "text": "*Jennifer Smith*\n242-395-5026\n\n120gallon new tank delivery with gas",
+      "sender": "Philip Corey Taylor",
+      "chat": "PPB LPG TEAM",
+      "timestamp": "2026-10-26T16:45:56.000Z",
+      "hasAttachment": false
+    }
+  },
+  {
+    "customerName": "C. Cartwright",
+    "customerContact": "242-557-1731",
+    "fuelType": "LPG",
+    "fuelQuantity": "120 gal new tank with gas",
+    "chargePayment": "Not specified",
+    "dateRequested": "2026-10-26",
+    "deliveryLocation": "Not specified",
+    "directions": "Not specified",
+    "sourceMessage": {
+      "messageId": "ACF36188F97DBC60C3F58C7FED133EEE",
+      "text": "*C. Cartwright*\n\n120gallon new tank delivery with gas\n\n242  557-1731",
+      "sender": "Philip Corey Taylor",
+      "chat": "PPB LPG TEAM",
+      "timestamp": "2026-10-26T16:52:31.000Z",
+      "hasAttachment": false
+    }
+  }
+]
